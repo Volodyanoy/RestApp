@@ -1,12 +1,14 @@
 package org.example.volodyanoy.RestApp.controllers;
 
+import org.apache.coyote.Response;
 import org.example.volodyanoy.RestApp.models.Person;
 import org.example.volodyanoy.RestApp.services.PeopleService;
+import org.example.volodyanoy.RestApp.util.PersonErrorResponse;
+import org.example.volodyanoy.RestApp.util.PersonNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -29,5 +31,15 @@ public class PeopleRESTController {
     @GetMapping("/{id}")
     public Person getPerson(@PathVariable("id") int id){
         return peopleService.findOne(id);
+    }
+
+    @ExceptionHandler(PersonNotFoundException.class)
+    private ResponseEntity<PersonErrorResponse> handleException(PersonNotFoundException e){
+        PersonErrorResponse response = new PersonErrorResponse(
+                "Person with this id was not found",
+                System.currentTimeMillis()
+        );
+
+        return new ResponseEntity<>(response, HttpStatus.NOT_FOUND); // not_found = 404
     }
 }
