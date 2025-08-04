@@ -3,11 +3,13 @@ package org.example.volodyanoy.RestApp.controllers;
 
 import jakarta.validation.Valid;
 import org.apache.coyote.Response;
+import org.example.volodyanoy.RestApp.dto.PersonDTO;
 import org.example.volodyanoy.RestApp.models.Person;
 import org.example.volodyanoy.RestApp.services.PeopleService;
 import org.example.volodyanoy.RestApp.util.PersonErrorResponse;
 import org.example.volodyanoy.RestApp.util.PersonNotCreatedException;
 import org.example.volodyanoy.RestApp.util.PersonNotFoundException;
+import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,31 +17,35 @@ import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/people")
 public class PeopleRESTController {
-
+    private final ModelMapper modelMapper;
     private final PeopleService peopleService;
 
     @Autowired
-    public PeopleRESTController(PeopleService peopleService) {
+    public PeopleRESTController(ModelMapper modelMapper, PeopleService peopleService) {
+        this.modelMapper = modelMapper;
         this.peopleService = peopleService;
     }
 
     @GetMapping()
-    public List<Person> getPeople(){
-        return peopleService.findAll(); // Jackson конвертирует в JSON
+    public List<PersonDTO> getPeople(){
+        return peopleService.findAll().stream().map(this::convertToPersonDTO)
+                .toList(); // Jackson конвертирует в JSON
     }
 
     @GetMapping("/{id}")
-    public Person getPerson(@PathVariable("id") int id){
-        return peopleService.findOne(id);
+    public PersonDTO getPerson(@PathVariable("id") int id){
+        return convertToPersonDTO(peopleService.findOne(id));
     }
 
     @PostMapping
-    public ResponseEntity<HttpStatus> create(@RequestBody @Valid Person person, BindingResult bindingResult){
+    public ResponseEntity<HttpStatus> create(@RequestBody @Valid PersonDTO personDTO, BindingResult bindingResult){
         if (bindingResult.hasErrors()){
            StringBuilder errorMsg = new StringBuilder();
            List<FieldError> errors = bindingResult.getFieldErrors();
@@ -50,7 +56,7 @@ public class PeopleRESTController {
             throw new PersonNotCreatedException(errorMsg.toString());
         }
 
-        peopleService.save(person);
+        peopleService.save(convertToPerson(personDTO));
 
         //http ответ с пустым телом и статусом 200
         return ResponseEntity.ok(HttpStatus.OK);
@@ -75,4 +81,15 @@ public class PeopleRESTController {
 
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST); // not_found = 404
     }
+
+    private Person convertToPerson(PersonDTO personDTO) {
+        return modelMapper.map(personDTO, Person.class);
+    }
+
+    private PersonDTO convertToPersonDTO(Person person){
+        return modelMapper.map(person, PersonDTO.class);
+    }
+
+
+
 }
